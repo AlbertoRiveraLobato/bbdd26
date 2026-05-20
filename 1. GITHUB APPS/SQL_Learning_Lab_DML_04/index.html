@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- ======================================================
+       VARIABLE DE VERSIÓN - Modifica solamente este valor:
+       ====================================================== -->
+  <script>
+    // ====== VARIABLE DE VERSIÓN DE LA APP ======
+    // Cambia el valor de esta variable para actualizar la versión mostrada en el título.
+    window.SQL_LAB_VERSION = "9";
+    // ===========================================
+  </script>
+  <title>SQL_Learning_Lab_DML_04: Versión <span id="version-in-title"></span></title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; font-family: sans-serif; background: #f3f6fa;}
+    #container { display: flex; height: calc(100vh - 80px); }
+    #left { width: 40%; background: #e9eef6; padding: 24px; box-sizing: border-box; display: flex; flex-direction: column; }
+    #right { flex: 1; background: #fff; padding: 16px; overflow: auto; }
+    #sql-editor { 
+      /* flex: 1;  -- QUITADO PARA PERMITIR REDIMENSIONAR */
+      width: 100%; 
+      font-family: monospace; 
+      font-size: 15px; 
+      resize: vertical; /* Permite redimensionar verticalmente */
+      margin-bottom: 18px; 
+      padding: 8px; 
+      border-radius: 6px; 
+      border: 1px solid #ccd;
+      min-height: 100px;
+      max-height: 900px;
+    }
+    .btn-group { margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+    button { padding: 7px 16px; background: #3a6df0; border: none; color: #fff; border-radius: 5px; font-size: 1rem; cursor: pointer; }
+    button:active { background: #2d4fb3; }
+    #tables-graph { display: flex; flex-wrap: wrap; gap: 20px; }
+    .table-box { border: 2px solid #3a6df0; border-radius: 7px; padding: 10px; min-width: 220px; background: #f7fafc; margin-bottom: 18px; }
+    .table-title { font-weight: bold; font-size: 1.1em; margin-bottom: 7px; color: #234; }
+    .column-header { font-weight: bold; background: #dde7fa; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #c3cce6; padding: 3px 7px; text-align: left; font-size: 0.97em; }
+    .msg { margin: 10px 0; color: #c0392b; }
+    /* Colores para tablas */
+    .table-color-0 { border-color: #3a6df0; background: #f7fafc; }
+    .table-color-1 { border-color: #2ec4b6; background: #e6fcf5; }
+    .table-color-2 { border-color: #ffb703; background: #fff9e6; }
+    .table-color-3 { border-color: #f94144; background: #fde9ea; }
+    .table-color-4 { border-color: #8338ec; background: #f4e9ff; }
+    .table-color-5 { border-color: #ff6f61; background: #fff1ee; }
+    @media (max-width: 800px) {
+      #container { flex-direction: column; }
+      #left, #right { width: 100%; }
+    }
+    /* Centrado del título */
+    #main-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-size: 2.15rem;
+      color: #234;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      text-align: center;
+      transition: background 0.5s;
+    }
+    #output {
+      margin: 10px 0;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      min-height: 100px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+    #output table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5em;
+    }
+    #output th, #output td {
+      border: 1px solid #ddd;
+      padding: 0.3em 0.5em;
+      text-align: left;
+    }
+    #output th {
+      background: #f5f5f5;
+      font-weight: bold;
+    }
+    .structure-table {
+      margin-bottom: 10px;
+      margin-top: 5px;
+      background: #f0f4ff;
+      border-radius: 6px;
+      border: 1px solid #aac;
+      font-size: 0.97em;
+    }
+    .structure-table th, .structure-table td {
+      border: 1px solid #c3cce6;
+      padding: 3px 7px;
+      text-align: left;
+    }
+    .structure-title {
+      font-size: 0.98em;
+      font-weight: bold;
+      color: #234;
+      margin-bottom: 2px;
+      margin-top: 4px;
+      letter-spacing: 0.2px;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="main-title"></h1>
+  <div id="container">
+    <div id="left">
+      <div class="btn-group">
+        <button id="ejecutarBtn">Ejecutar</button>
+        <button id="borrarBtn">Borrar</button>
+        <button id="initBtn">Inicializar BBDD</button>
+        <button id="eliminarBtn">Eliminar BBDD</button>
+        <button id="actualizarBtn">Actualizar</button>
+      </div>
+      <textarea id="sql-editor" spellcheck="false" placeholder="Escribe tu código SQL aquí..."></textarea>
+      <div id="msg" class="msg"></div>
+      <div id="output"></div>
+    </div>
+    <div id="right">
+      <div id="tables-graph"></div>
+    </div>
+  </div>
+  <script>
+    // Mostrar el título de la aplicación centrado y con la versión leída de la variable
+    document.addEventListener('DOMContentLoaded', function() {
+      // Usar la variable de versión definida arriba
+      const version = window.SQL_LAB_VERSION || "sin versión";
+      const mainTitle = document.getElementById('main-title');
+      mainTitle.textContent = 'SQL_Learning_Lab_DML_04: Versión ' + version;
+    });
+
+    // Color dinámico del header tras ejecutar correctamente
+    function randomHeaderColor() {
+      const colors = [
+        '#ffe6e6', '#e6ffe6', '#e6f1ff', '#fffbe6', '#f6e6ff', '#e6fff9',
+        '#e9f7ef', '#f7e9ee', '#e2eafc', '#f9f9e6', '#e6f9e6'
+      ];
+      document.getElementById('main-title').style.background = colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    // Color rojo del header cuando hay error en la ejecución
+    function setHeaderError() {
+      document.getElementById('main-title').style.background = '#f44336';
+    }
+
+    // Mostrar resultados de consultas SELECT
+    function printResult(rows) {
+      const output = document.getElementById('output');
+      if (!rows || rows.length === 0) {
+        output.innerHTML = "<pre>No hay resultados para mostrar.</pre>";
+        return;
+      }
+      let html = '<table><thead><tr>';
+      for (const key in rows[0]) {
+        html += `<th>${key}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+      rows.forEach(row => {
+        html += '<tr>';
+        for (const key in row) {
+          html += `<td>${row[key]}</td>`;
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      output.innerHTML = html;
+    }
+
+    let db = null;
+    let SQL = null;
+
+    // Código SQL de inicialización (puedes modificarlo)
+    const initSQL = `
+-- Crear tabla de alumnos
+CREATE TABLE IF NOT EXISTS alumnos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT,
+  edad INTEGER
+);
+
+-- Insertar datos de ejemplo
+INSERT INTO alumnos (nombre, edad) VALUES
+  ('Ana', 20),
+  ('Luis', 22),
+  ('Marta', 19);
+
+-- Crear tabla de asignaturas
+CREATE TABLE IF NOT EXISTS asignaturas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT,
+  curso TEXT
+);
+
+-- Insertar datos de ejemplo
+INSERT INTO asignaturas (nombre, curso) VALUES
+  ('Matemáticas', '1º'),
+  ('Historia', '1º'),
+  ('Física', '2º');
+`;
+
+    // Cargar y preparar sql.js
+    window.initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` })
+      .then(SQLLib => {
+        SQL = SQLLib;
+        inicializarBBDD();
+      });
+
+    // Inicializa la base de datos con datos de ejemplo
+    function inicializarBBDD() {
+      db = new SQL.Database();
+      ejecutarSQL(initSQL, false); // No mostrar mensaje, solo ejecutar
+      document.getElementById('sql-editor').value = initSQL.trim();
+      actualizarVistaTablas();
+      mostrarMensaje('Base de datos inicializada.', false);
+    }
+
+    // Elimina la base de datos
+    function eliminarBBDD() {
+      db = new SQL.Database();
+      document.getElementById('output').innerHTML = '';
+      actualizarVistaTablas();
+      mostrarMensaje('Base de datos eliminada (vacía).', false);
+    }
+
+    // Ejecuta el SQL del editor
+    function ejecutarDesdeEditor() {
+      const code = document.getElementById('sql-editor').value;
+      if (!code.trim()) {
+        mostrarMensaje('Introduce algún código SQL.', true);
+        return;
+      }
+      ejecutarSQL(code, true);
+      actualizarVistaTablas();
+    }
+
+    // Ejecuta SQL y muestra resultados o errores
+    function ejecutarSQL(sql, mostrarOK) {
+      try {
+        const results = db.exec(sql);
+        
+        // Si hay resultados (como en SELECT), mostrarlos
+        if (results.length > 0 && results[0].values && results[0].values.length > 0) {
+          const rows = results[0].values || [];
+          const columns = results[0].columns || [];
+          // Formatear como array de objetos
+          let data = [];
+          rows.forEach(row => {
+            let obj = {};
+            columns.forEach((col, i) => obj[col] = row[i]);
+            data.push(obj);
+          });
+          printResult(data);
+          if (mostrarOK) mostrarMensaje('Consulta ejecutada correctamente.', false);
+        } else {
+          // Si no hay resultados pero la consulta fue exitosa
+          document.getElementById('output').innerHTML = '';
+          if (mostrarOK) mostrarMensaje('SQL ejecutado correctamente.', false);
+        }
+        
+        randomHeaderColor();
+      } catch (e) {
+        mostrarMensaje('Error SQL: ' + e.message, true);
+        document.getElementById('output').innerHTML = '';
+        setHeaderError();
+      }
+    }
+
+    // Borrar editor
+    function borrarEditor() {
+      document.getElementById('sql-editor').value = '';
+      document.getElementById('output').innerHTML = '';
+      mostrarMensaje('', false);
+    }
+
+    // Analiza la definición CREATE TABLE para extraer restricciones de columna
+    function getColumnConstraints(tableName, columnName, tableSql, pragmaRow) {
+      // pragmaRow contiene {cid, name, type, notnull, dflt_value, pk}
+      const constraints = [];
+
+      // NOT NULL
+      if (pragmaRow.notnull === 1) constraints.push('NOT NULL');
+      // DEFAULT
+      if (pragmaRow.dflt_value !== null && pragmaRow.dflt_value !== undefined)
+        constraints.push('DEFAULT ' + pragmaRow.dflt_value);
+      // PRIMARY KEY
+      if (pragmaRow.pk === 1) constraints.push('PRIMARY KEY');
+      // AUTOINCREMENT (solo si PRIMARY KEY INTEGER AUTOINCREMENT)
+      if (
+        pragmaRow.pk === 1 &&
+        pragmaRow.type &&
+        pragmaRow.type.toUpperCase().includes('INT') &&
+        /AUTOINCREMENT/i.test(tableSql)
+      ) {
+        // Buscar la definición de la columna
+        const regex = new RegExp(`${columnName}\\s+[^,]*AUTOINCREMENT`, "i");
+        if (regex.test(tableSql)) constraints.push('AUTOINCREMENT');
+      }
+
+      // CHECK constraints (por columna)
+      // Busca CHECK en la definición de la columna
+      const colDefRegex = new RegExp(
+        `${columnName}\\s+[^,]*CHECK\\s*\\(([^\\)]*)\\)`,
+        "i"
+      );
+      const matchCheck = tableSql.match(colDefRegex);
+      if (matchCheck) constraints.push('CHECK (' + matchCheck[1].trim() + ')');
+
+      // UNIQUE por columna
+      const uniqueColRegex = new RegExp(`${columnName}\\s+[^,]*UNIQUE`, "i");
+      if (uniqueColRegex.test(tableSql)) constraints.push('UNIQUE');
+
+      // NULL explícito (si no es NOT NULL)
+      if (pragmaRow.notnull === 0) {
+        // Si la definición pone NULL explícito
+        const nullColRegex = new RegExp(`${columnName}\\s+[^,]*\\bNULL\\b`, "i");
+        if (nullColRegex.test(tableSql)) constraints.push('NULL');
+      }
+
+      return constraints;
+    }
+
+    // Busca restricciones FOREIGN KEY a nivel de tabla
+    function getForeignKeysForTable(tableName) {
+      try {
+        const res = db.exec(`PRAGMA foreign_key_list(${tableName});`);
+        if (!res.length) return [];
+        // Cada row: [id, seq, table, from, to, on_update, on_delete, match]
+        return res[0].values.map(row => ({
+          from: row[3],
+          refTable: row[2],
+          to: row[4],
+          onUpdate: row[5],
+          onDelete: row[6],
+          match: row[7]
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    // Actualiza el área derecha con las tablas y datos
+    function actualizarVistaTablas() {
+      const graph = document.getElementById('tables-graph');
+      graph.innerHTML = '';
+      if (!db) return;
+
+      try {
+        // Obtener nombres de tablas
+        const tablas = db.exec("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+        if (!tablas[0] || tablas[0].values.length === 0) {
+          graph.innerHTML = '<div style="color:#888;padding:16px;">No hay tablas en la base de datos.</div>';
+          return;
+        }
+        // Colores para las tablas
+        const tablaColors = [
+          'table-color-0',
+          'table-color-1',
+          'table-color-2',
+          'table-color-3',
+          'table-color-4',
+          'table-color-5'
+        ];
+
+        tablas[0].values.forEach((tablaRow, idx) => {
+          const tabla = tablaRow[0];
+          const tableSql = tablaRow[1] || '';
+
+          const box = document.createElement('div');
+          // Asignar un color diferente para cada tabla
+          const colorClass = tablaColors[idx % tablaColors.length];
+          box.className = `table-box ${colorClass}`;
+
+          // Título
+          const title = document.createElement('div');
+          title.className = 'table-title';
+          title.textContent = tabla;
+          box.appendChild(title);
+
+          // ==== ESTRUCTURA DE LA TABLA ====
+          const structureTitle = document.createElement('div');
+          structureTitle.className = 'structure-title';
+          structureTitle.textContent = 'Estructura de la tabla:';
+          box.appendChild(structureTitle);
+
+          // Obtener columnas
+          const columnas = db.exec(`PRAGMA table_info(${tabla});`);
+          const columnsInfo = columnas[0].values.map(col => ({
+            cid: col[0],
+            name: col[1],
+            type: col[2],
+            notnull: col[3],
+            dflt_value: col[4],
+            pk: col[5]
+          }));
+
+          // Tabla de estructura
+          const structureTable = document.createElement('table');
+          structureTable.className = 'structure-table';
+          const structureThead = document.createElement('thead');
+          const strTr = document.createElement('tr');
+          ['Columna', 'Tipo', 'Restricciones'].forEach(thtxt => {
+            const th = document.createElement('th');
+            th.textContent = thtxt;
+            strTr.appendChild(th);
+          });
+          structureThead.appendChild(strTr);
+          structureTable.appendChild(structureThead);
+
+          const structureTbody = document.createElement('tbody');
+          columnsInfo.forEach(col => {
+            const tr = document.createElement('tr');
+            // Columna
+            const tdName = document.createElement('td');
+            tdName.textContent = col.name;
+            tr.appendChild(tdName);
+            // Tipo
+            const tdType = document.createElement('td');
+            tdType.textContent = col.type;
+            tr.appendChild(tdType);
+            // Restricciones
+            const tdCons = document.createElement('td');
+            const constraints = getColumnConstraints(tabla, col.name, tableSql, col);
+            tdCons.textContent = constraints.length > 0 ? constraints.join(', ') : '';
+            tr.appendChild(tdCons);
+
+            structureTbody.appendChild(tr);
+          });
+          structureTable.appendChild(structureTbody);
+
+          // FOREIGN KEYS
+          const foreignKeys = getForeignKeysForTable(tabla);
+          if (foreignKeys.length > 0) {
+            const fkDiv = document.createElement('div');
+            fkDiv.style.marginTop = '6px';
+            fkDiv.style.fontSize = '0.97em';
+            fkDiv.innerHTML = '<b>FOREIGN KEY(s):</b><br>' + foreignKeys.map(fk =>
+              `Columna <b>${fk.from}</b> → <b>${fk.refTable}(${fk.to})</b>` +
+              (fk.onUpdate || fk.onDelete ? ` [on_update: ${fk.onUpdate}, on_delete: ${fk.onDelete}]` : '')
+            ).join('<br>');
+            box.appendChild(structureTable);
+            box.appendChild(fkDiv);
+          } else {
+            box.appendChild(structureTable);
+          }
+
+          // ==== FIN ESTRUCTURA ====
+
+          // Obtener nombres de columnas para la tabla de datos
+          const columnasNombres = columnsInfo.map(col => col.name);
+
+          // Obtener datos
+          let datos = [];
+          try {
+            const res = db.exec(`SELECT * FROM ${tabla};`);
+            if (res.length > 0) datos = res[0].values;
+          } catch (e) { datos = []; }
+
+          // Crear tabla HTML para los datos
+          const tablaHTML = document.createElement('table');
+          const thead = document.createElement('thead');
+          const tr = document.createElement('tr');
+          columnasNombres.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            th.className = 'column-header';
+            tr.appendChild(th);
+          });
+          thead.appendChild(tr);
+          tablaHTML.appendChild(thead);
+
+          // Filas
+          const tbody = document.createElement('tbody');
+          if (datos.length === 0) {
+            const trv = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = columnasNombres.length;
+            td.style.color = '#aaa';
+            td.textContent = 'Sin datos';
+            trv.appendChild(td);
+            tbody.appendChild(trv);
+          } else {
+            datos.forEach(fila => {
+              const trf = document.createElement('tr');
+              fila.forEach(valor => {
+                const td = document.createElement('td');
+                td.textContent = valor;
+                trf.appendChild(td);
+              });
+              tbody.appendChild(trf);
+            });
+          }
+          tablaHTML.appendChild(tbody);
+          box.appendChild(tablaHTML);
+
+          graph.appendChild(box);
+        });
+      } catch (e) {
+        graph.innerHTML = '<div style="color:#c0392b;">Error mostrando tablas: ' + e.message + '</div>';
+      }
+    }
+
+    // Mostrar mensaje (error o info)
+    function mostrarMensaje(msg, esError) {
+      const el = document.getElementById('msg');
+      el.textContent = msg;
+      el.style.color = esError ? '#c0392b' : '#2d7b2f';
+    }
+
+    // Capturar TAB en textarea y Ctrl+Enter para ejecutar
+    document.addEventListener('DOMContentLoaded', function() {
+      const editor = document.getElementById('sql-editor');
+      editor.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = this.selectionStart;
+          const end = this.selectionEnd;
+          const value = this.value;
+          this.value = value.substring(0, start) + "    " + value.substring(end);
+          this.selectionStart = this.selectionEnd = start + 4;
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'Return')) {
+          // Ejecutar con Ctrl+Enter (o Cmd+Enter en Mac)
+          e.preventDefault();
+          ejecutarDesdeEditor();
+        }
+      });
+    });
+
+    // Botones
+    document.getElementById('ejecutarBtn').onclick = ejecutarDesdeEditor;
+    document.getElementById('borrarBtn').onclick = borrarEditor;
+    document.getElementById('initBtn').onclick = inicializarBBDD;
+    document.getElementById('eliminarBtn').onclick = eliminarBBDD;
+    document.getElementById('actualizarBtn').onclick = actualizarVistaTablas;
+  </script>
+</body>
+</html>
