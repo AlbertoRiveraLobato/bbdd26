@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <script>
+    window.SQL_LAB_VERSION = "24";
+  </script>
+  <title>SQL_Learning_Lab_DML_04_Mejorada: Versión 24</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; font-family: sans-serif; background: #f3f6fa; overflow: hidden; }
+
+    #main-title {
+      display: flex; align-items: center; justify-content: center;
+      height: 48px; font-size: 1.6rem; color: #234; letter-spacing: 0.5px;
+      font-weight: 700; text-align: center; transition: background 0.5s;
+      flex-shrink: 0;
+    }
+
+    #app-wrapper {
+      display: flex; flex-direction: column;
+      height: 100vh;
+    }
+
+    #container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #left {
+      width: 40%;
+      min-width: 220px;
+      max-width: 80%;
+      background: #e9eef6;
+      padding: 16px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #divider {
+      width: 6px;
+      background: #c4cfe8;
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background 0.15s;
+      position: relative;
+      z-index: 10;
+    }
+    #divider:hover, #divider.dragging { background: #3a6df0; }
+    #divider::after {
+      content: '⋮';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #8899bb;
+      font-size: 18px;
+      pointer-events: none;
+    }
+
+    #right {
+      flex: 1;
+      background: #fff;
+      overflow: hidden;
+      position: relative;
+      min-width: 0;
+    }
+
+    #tables-graph {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+    }
+
+    .table-box {
+      position: absolute;
+      border: 2px solid #3a6df0;
+      border-radius: 7px;
+      padding: 10px;
+      min-width: 180px;
+      min-height: 80px;
+      background: #f7fafc;
+      box-shadow: 2px 4px 14px rgba(60,80,160,0.10);
+      box-sizing: border-box;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .table-title {
+      font-weight: bold; font-size: 1.05em; margin-bottom: 7px; color: #234;
+      cursor: grab; padding: 2px 4px; border-radius: 4px;
+      background: rgba(58,109,240,0.08);
+    }
+    .table-title:active { cursor: grabbing; }
+
+    .resize-handle {
+      position: absolute;
+      right: 0; bottom: 0;
+      width: 16px; height: 16px;
+      cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 50%, #3a6df0aa 50%);
+      border-radius: 0 0 5px 0;
+    }
+
+    .table-content {
+      overflow: auto;
+      max-height: calc(100% - 36px);
+    }
+
+    .column-header { font-weight: bold; background: #dde7fa; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #c3cce6; padding: 3px 7px; text-align: left; font-size: 0.9em; }
+
+    .table-color-0 { border-color: #3a6df0; background: #f7fafc; }
+    .table-color-1 { border-color: #2ec4b6; background: #e6fcf5; }
+    .table-color-2 { border-color: #ffb703; background: #fff9e6; }
+    .table-color-3 { border-color: #f94144; background: #fde9ea; }
+    .table-color-4 { border-color: #8338ec; background: #f4e9ff; }
+    .table-color-5 { border-color: #ff6f61; background: #fff1ee; }
+
+    .btn-group { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+    button { padding: 7px 14px; background: #3a6df0; border: none; color: #fff; border-radius: 5px; font-size: 0.95rem; cursor: pointer; }
+    button:active { background: #2d4fb3; }
+    button:hover { background: #2d5dd4; }
+
+    /* crea colores verdes para el boton "Generar código ejemplo".btn-group */
+    #initBtn {
+      background: #2ec4b6;
+    }
+    #initBtn:hover { background: #22a99d; }
+    #initBtn:active { background: #1a8780; }
+
+    /* crea colores rojos para el boton "Ejecutar".btn-group */
+    #ejecutarBtn {
+      background: #64ef5d;
+      color: #000;
+    }
+    #ejecutarBtn:hover { background: #70e22d; }
+    #ejecutarBtn:active { background: #278a0c; }
+
+    /* otra sección para el botón eliminar, con colores rojos */
+    #eliminarBtn {
+      background: #f94144;
+    }
+    #eliminarBtn:hover { background: #d73030; }
+    #eliminarBtn:active { background: #a52727; }  
+
+    /* otra sección para el botón actualizar, con colores naranjas */
+    #borrarBtn {
+      background: #ffb703;
+      color: #000;
+    }
+    #borrarBtn:hover { background: #ff9f00; }
+    #borrarBtn:active { background: #c66f00; }  
+
+    #sql-editor {
+      width: 100%;
+      font-family: monospace;
+      font-size: 14px;
+      resize: vertical;
+      margin-bottom: 12px;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccd;
+      min-height: 100px;
+      max-height: 600px;
+      box-sizing: border-box;
+    }
+
+    .msg { margin: 6px 0; font-size: 0.92em; }
+
+    #output {
+      margin: 6px 0;
+      padding: 8px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.88em;
+      flex-shrink: 0;
+      max-height: 200px;
+    }
+    #output table { width: 100%; border-collapse: collapse; margin-top: 0.3em; }
+    #output th, #output td { border: 1px solid #ddd; padding: 0.3em 0.5em; text-align: left; }
+    #output th { background: #f5f5f5; font-weight: bold; }
+
+    .structure-table { margin-bottom: 6px; margin-top: 4px; background: #f0f4ff; border-radius: 5px; border: 1px solid #aac; font-size: 0.9em; }
+    .structure-table th, .structure-table td { border: 1px solid #c3cce6; padding: 2px 6px; text-align: left; }
+    .structure-title { font-size: 0.9em; font-weight: bold; color: #234; margin-bottom: 2px; margin-top: 4px; }
+
+    .structure-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+      margin-bottom: 4px;
+      padding: 6px 8px;
+      border: 1px solid #aac;
+      border-radius: 5px;
+      background: #e7efff;
+      color: #234;
+      font-size: 0.9em;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .structure-toggle:hover {
+      background: #dbe8ff;
+    }
+    .structure-toggle .toggle-icon {
+      transition: transform 0.2s ease;
+      font-size: 0.9em;
+    }
+    .table-box.structure-collapsed .toggle-icon {
+      transform: rotate(-90deg);
+    }
+    .table-box.structure-collapsed .structure-content {
+      display: none;
+    }
+
+    #code-loaded-banner {
+      display: none;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 5px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      font-size: 0.88em;
+      color: #856404;
+    }
+  </style>
+</head>
+<body>
+<div id="app-wrapper">
+  <h1 id="main-title"></h1>
+  <div id="container">
+    <div id="left">
+      <div class="btn-group">
+        <button id="ejecutarBtn">▶ Ejecutar</button>
+        <button id="borrarBtn">🗑 Borrar</button>
+        <button id="initBtn">⚡ Generar código ejemplo</button>
+        <button id="unanBtn">🚗 Crear 1:N</button>
+        <button id="mnBtn">🔗 Crear M:N</button>
+        <button id="mnhBtn">🕘 Crear M:N histórico</button>
+        <button id="eliminarBtn">✕ Eliminar BBDD</button>
+        <button id="actualizarBtn">⟳ Actualizar</button>
+      </div>
+      <div id="code-loaded-banner">
+        💡 Código de ejemplo cargado en el editor. Pulse <strong>▶ Ejecutar</strong> para aplicarlo.
+      </div>
+      <textarea id="sql-editor" spellcheck="false" placeholder="Escribe tu código SQL aquí..."></textarea>
+      <div id="msg" class="msg"></div>
+      <div id="output"></div>
+    </div>
+
+    <div id="divider"></div>
+
+    <div id="right">
+      <div id="tables-graph"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const version = window.SQL_LAB_VERSION || "?";
+    document.getElementById('main-title').textContent = 'SQL_Learning_Lab_DML_04_Mejorada: Versión ' + version;
+    document.title = 'SQL_Learning_Lab_DML_04_Mejorada: Versión ' + version;
+  });
+
+  function randomHeaderColor() {
+    const colors = ['#ffe6e6','#e6ffe6','#e6f1ff','#fffbe6','#f6e6ff','#e6fff9','#e9f7ef','#f7e9ee','#e2eafc','#f9f9e6'];
+    document.getElementById('main-title').style.background = colors[Math.floor(Math.random()*colors.length)];
+  }
+  function setHeaderError() {
+    document.getElementById('main-title').style.background = '#f44336';
+  }
+
+  function printResult(rows) {
+    const output = document.getElementById('output');
+    if (!rows || rows.length === 0) { output.innerHTML = '<pre>No hay resultados.</pre>'; return; }
+    let html = '<table><thead><tr>';
+    for (const key in rows[0]) html += `<th>${key}</th>`;
+    html += '</tr></thead><tbody>';
+    rows.forEach(row => {
+      html += '<tr>';
+      for (const key in row) html += `<td>${row[key]}</td>`;
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    output.innerHTML = html;
+  }
+
+  let db = null;
+  let SQL = null;
+
+  const initSQL = `-- Crear tabla de alumnos
+CREATE TABLE IF NOT EXISTS alumnos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT,
+  edad INTEGER
+);
+
+-- Insertar datos de ejemplo
+INSERT INTO alumnos (nombre, edad) VALUES
+  ('Ana', 20),
+  ('Luis', 22),
+  ('Marta', 19);
+
+-- Crear tabla de asignaturas
+CREATE TABLE IF NOT EXISTS asignaturas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT,
+  curso TEXT
+);
+
+-- Insertar datos de ejemplo
+INSERT INTO asignaturas (nombre, curso) VALUES
+  ('Matemáticas', '1º'),
+  ('Historia', '1º'),
+  ('Física', '2º');`;
+
+  const mnSQL = `-- Relación M:N entre alumnos y asignaturas
+DROP TABLE IF EXISTS matriculas;
+DROP TABLE IF EXISTS asignaturas;
+DROP TABLE IF EXISTS alumnos;
+
+CREATE TABLE alumnos (
+  id_alumno INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  edad INTEGER
+);
+
+CREATE TABLE asignaturas (
+  id_asignatura INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  curso TEXT
+);
+
+CREATE TABLE matriculas (
+  id_alumno INTEGER NOT NULL,
+  id_asignatura INTEGER NOT NULL,
+  PRIMARY KEY (id_alumno, id_asignatura),
+  FOREIGN KEY (id_alumno) REFERENCES alumnos(id_alumno),
+  FOREIGN KEY (id_asignatura) REFERENCES asignaturas(id_asignatura)
+);
+
+INSERT INTO alumnos (nombre, edad) VALUES
+  ('Ana', 20),
+  ('Luis', 22),
+  ('Marta', 19);
+
+INSERT INTO asignaturas (nombre, curso) VALUES
+  ('Bases de Datos', '1º DAM'),
+  ('Sistemas Informáticos', '1º ASIR'),
+  ('Programación', '1º DAM');
+
+INSERT INTO matriculas (id_alumno, id_asignatura) VALUES
+  (1, 1),
+  (1, 3),
+  (2, 2),
+  (3, 1);`;
+
+  const unANSQL = `-- Relación 1:N: Propietarios y sus Coches
+DROP TABLE IF EXISTS coches;
+DROP TABLE IF EXISTS propietarios;
+
+CREATE TABLE propietarios (
+  id_propietario INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  email TEXT
+);
+
+CREATE TABLE coches (
+  id_coche INTEGER PRIMARY KEY AUTOINCREMENT,
+  marca TEXT NOT NULL,
+  modelo TEXT NOT NULL,
+  año INTEGER,
+  id_propietario INTEGER NOT NULL,
+
+  FOREIGN KEY (id_propietario) REFERENCES propietarios(id_propietario)
+);
+
+INSERT INTO propietarios (nombre, email) VALUES
+  ('Carlos García', 'carlos@email.com'),
+  ('María López', 'maria@email.com'),
+  ('Juan Martínez', 'juan@email.com'),
+  ('Ana Rodríguez', 'ana@email.com');
+
+INSERT INTO coches (marca, modelo, año, id_propietario) VALUES
+  ('Toyota', 'Corolla', 2022, 1),
+  ('Honda', 'Civic', 2020, 1),
+  ('Ford', 'Focus', 2021, 2),
+  ('Volkswagen', 'Golf', 2023, 3);`;
+
+  const mnHistoricoSQL = `-- Relación M:N con histórico de matrículas
+DROP TABLE IF EXISTS matriculas_historico;
+DROP TABLE IF EXISTS asignaturas;
+DROP TABLE IF EXISTS alumnos;
+
+CREATE TABLE alumnos (
+  id_alumno INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  edad INTEGER
+);
+
+CREATE TABLE asignaturas (
+  id_asignatura INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  curso TEXT
+);
+
+CREATE TABLE matriculas_historico (
+  id_alumno INTEGER NOT NULL,
+  id_asignatura INTEGER NOT NULL,
+  fecha_matricula DATE NOT NULL,
+  nota REAL,
+  PRIMARY KEY (id_alumno, id_asignatura, fecha_matricula),
+  FOREIGN KEY (id_alumno) REFERENCES alumnos(id_alumno),
+  FOREIGN KEY (id_asignatura) REFERENCES asignaturas(id_asignatura)
+);
+
+INSERT INTO alumnos (nombre, edad) VALUES
+  ('Ana', 20),
+  ('Luis', 22),
+  ('Marta', 19);
+
+INSERT INTO asignaturas (nombre, curso) VALUES
+  ('Bases de Datos', '1º DAM'),
+  ('Sistemas Informáticos', '1º ASIR'),
+  ('Programación', '1º DAM');
+
+INSERT INTO matriculas_historico (id_alumno, id_asignatura, fecha_matricula, nota) VALUES
+  (1, 1, '2025-09-15', 8.5),
+  (1, 1, '2026-02-10', 9.0),
+  (1, 3, '2025-09-15', 7.8),
+  (2, 2, '2025-09-18', 6.9),
+  (3, 1, '2025-09-20', 8.1);`;
+
+  window.initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` })
+    .then(SQLLib => {
+      SQL = SQLLib;
+      db = new SQL.Database();
+      actualizarVistaTablas();
+      mostrarMensaje('SQL.js listo. BBDD vacía.', false);
+    });
+
+  function generarCodigoEjemplo() {
+    document.getElementById('sql-editor').value = initSQL.trim();
+    document.getElementById('code-loaded-banner').style.display = 'block';
+    mostrarMensaje('Código de ejemplo cargado. Pulse Ejecutar para aplicarlo.', false);
+  }
+
+
+  function crearUnAN() {
+    document.getElementById('sql-editor').value = unANSQL.trim();
+    document.getElementById('code-loaded-banner').style.display = 'block';
+    mostrarMensaje('Código 1:N cargado. Pulse Ejecutar para crear propietarios, coches y su relación.', false);
+  }
+
+  function crearMN() {
+    document.getElementById('sql-editor').value = mnSQL.trim();
+    document.getElementById('code-loaded-banner').style.display = 'block';
+    mostrarMensaje('Código M:N cargado. Pulse Ejecutar para crear alumnos, asignaturas y la tabla intermedia matriculas.', false);
+  }
+
+  function crearMNHistorico() {
+    document.getElementById('sql-editor').value = mnHistoricoSQL.trim();
+    document.getElementById('code-loaded-banner').style.display = 'block';
+    mostrarMensaje('Código M:N con histórico cargado. Pulse Ejecutar para crear alumnos, asignaturas y la tabla intermedia con fecha y nota en su clave primaria compuesta.', false);
+  }
+
+  function eliminarBBDD() {
+    db = new SQL.Database();
+    document.getElementById('output').innerHTML = '';
+    document.getElementById('code-loaded-banner').style.display = 'none';
+    actualizarVistaTablas();
+    mostrarMensaje('Base de datos eliminada (vacía).', false);
+  }
+
+  function ejecutarDesdeEditor() {
+    const code = document.getElementById('sql-editor').value;
+    if (!code.trim()) { mostrarMensaje('Introduce algún código SQL.', true); return; }
+    document.getElementById('code-loaded-banner').style.display = 'none';
+    ejecutarSQL(code, true);
+    actualizarVistaTablas();
+  }
+
+  function ejecutarSQL(sql, mostrarOK) {
+    try {
+      const results = db.exec(sql);
+      if (results.length > 0 && results[0].values && results[0].values.length > 0) {
+        const rows = results[0].values;
+        const columns = results[0].columns;
+        let data = rows.map(row => { let o={}; columns.forEach((c,i)=>o[c]=row[i]); return o; });
+        printResult(data);
+        if (mostrarOK) mostrarMensaje('Consulta ejecutada correctamente.', false);
+      } else {
+        document.getElementById('output').innerHTML = '';
+        if (mostrarOK) mostrarMensaje('SQL ejecutado correctamente.', false);
+      }
+      randomHeaderColor();
+    } catch(e) {
+      mostrarMensaje('Error SQL: ' + e.message, true);
+      document.getElementById('output').innerHTML = '';
+      setHeaderError();
+    }
+  }
+
+  function borrarEditor() {
+    document.getElementById('sql-editor').value = '';
+    document.getElementById('output').innerHTML = '';
+    document.getElementById('code-loaded-banner').style.display = 'none';
+    mostrarMensaje('', false);
+  }
+
+  function mostrarMensaje(msg, esError) {
+    const el = document.getElementById('msg');
+    el.textContent = msg;
+    el.style.color = esError ? '#c0392b' : '#2d7b2f';
+  }
+
+  function getColumnConstraints(tableName, columnName, tableSql, pragmaRow) {
+    const constraints = [];
+    if (pragmaRow.notnull === 1) constraints.push('NOT NULL');
+    if (pragmaRow.dflt_value !== null && pragmaRow.dflt_value !== undefined)
+      constraints.push('DEFAULT ' + pragmaRow.dflt_value);
+
+    if (pragmaRow.pk > 0) {
+      constraints.push(pragmaRow.pk === 1 ? 'PRIMARY KEY' : `PRIMARY KEY (${pragmaRow.pk})`);
+    }
+
+    if (pragmaRow.pk > 0 && pragmaRow.type && pragmaRow.type.toUpperCase().includes('INT') && /AUTOINCREMENT/i.test(tableSql)) {
+      const regex = new RegExp(`${columnName}\s+[^,]*AUTOINCREMENT`, "i");
+      if (regex.test(tableSql)) constraints.push('AUTOINCREMENT');
+    }
+
+    const colDefRegex = new RegExp(`${columnName}\s+[^,]*CHECK\s*\(([^\)]*)\)`,"i");
+    const matchCheck = tableSql.match(colDefRegex);
+    if (matchCheck) constraints.push('CHECK (' + matchCheck[1].trim() + ')');
+
+    const uniqueColRegex = new RegExp(`${columnName}\s+[^,]*UNIQUE`,"i");
+    if (uniqueColRegex.test(tableSql)) constraints.push('UNIQUE');
+
+    if (pragmaRow.notnull === 0 && pragmaRow.pk === 0) {
+      const nullColRegex = new RegExp(`${columnName}\s+[^,]*\bNULL\b`,"i");
+      if (nullColRegex.test(tableSql)) constraints.push('NULL');
+    }
+
+    return constraints;
+  }
+
+  function getForeignKeysForTable(tableName) {
+    try {
+      const res = db.exec(`PRAGMA foreign_key_list(${tableName});`);
+      if (!res.length) return [];
+      return res[0].values.map(row => ({ from: row[3], refTable: row[2], to: row[4], onUpdate: row[5], onDelete: row[6] }));
+    } catch { return []; }
+  }
+
+  const boxPositions = {};
+  const boxSizes = {};
+  const structureCollapsedState = {};
+
+  function actualizarVistaTablas() {
+    const graph = document.getElementById('tables-graph');
+    if (!db) return;
+
+    graph.querySelectorAll('.table-box').forEach(box => {
+      const key = box.dataset.tableName;
+      if (key) {
+        boxPositions[key] = { left: parseInt(box.style.left)||20, top: parseInt(box.style.top)||20 };
+        boxSizes[key] = { width: box.offsetWidth, height: box.offsetHeight };
+        structureCollapsedState[key] = box.classList.contains('structure-collapsed');
+      }
+    });
+
+    graph.innerHTML = '';
+
+    try {
+      const tablas = db.exec("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+      if (!tablas[0] || tablas[0].values.length === 0) {
+        graph.innerHTML = '<div style="color:#888;padding:24px;position:absolute;">No hay tablas en la base de datos.</div>';
+        return;
+      }
+
+      const tablaColors = ['table-color-0','table-color-1','table-color-2','table-color-3','table-color-4','table-color-5'];
+
+      tablas[0].values.forEach((tablaRow, idx) => {
+        const tabla = tablaRow[0];
+        const tableSql = tablaRow[1] || '';
+        const colorClass = tablaColors[idx % tablaColors.length];
+
+        const pos = boxPositions[tabla] || { left: 20 + (idx * 30) % 200, top: 20 + (idx * 40) % 150 };
+        const size = boxSizes[tabla] || { width: 280, height: null };
+
+        const box = document.createElement('div');
+        box.className = `table-box ${colorClass}`;
+        box.dataset.tableName = tabla;
+        box.style.left = pos.left + 'px';
+        box.style.top = pos.top + 'px';
+        box.style.width = size.width + 'px';
+        if (size.height) box.style.height = size.height + 'px';
+        if (structureCollapsedState[tabla]) box.classList.add('structure-collapsed');
+
+        const title = document.createElement('div');
+        title.className = 'table-title';
+        title.textContent = '⠿ ' + tabla;
+        box.appendChild(title);
+
+        const content = document.createElement('div');
+        content.className = 'table-content';
+
+        const structureToggle = document.createElement('button');
+        structureToggle.type = 'button';
+        structureToggle.className = 'structure-toggle';
+        structureToggle.setAttribute('aria-expanded', String(!box.classList.contains('structure-collapsed')));
+        structureToggle.innerHTML = '<span>Estructura:</span><span class="toggle-icon">▼</span>';
+        content.appendChild(structureToggle);
+
+        const structureContent = document.createElement('div');
+        structureContent.className = 'structure-content';
+
+        const columnas = db.exec(`PRAGMA table_info(${tabla});`);
+        const columnsInfo = columnas[0].values.map(col => ({
+          cid: col[0], name: col[1], type: col[2], notnull: col[3], dflt_value: col[4], pk: col[5]
+        }));
+
+        const structureTable = document.createElement('table');
+        structureTable.className = 'structure-table';
+        const stHead = document.createElement('thead');
+        const stHr = document.createElement('tr');
+        ['Columna','Tipo','Restricciones'].forEach(txt => {
+          const th = document.createElement('th'); th.textContent = txt; stHr.appendChild(th);
+        });
+        stHead.appendChild(stHr);
+        structureTable.appendChild(stHead);
+
+        const stBody = document.createElement('tbody');
+        columnsInfo.forEach(col => {
+          const tr = document.createElement('tr');
+          [col.name, col.type, getColumnConstraints(tabla, col.name, tableSql, col).join(', ')].forEach(txt => {
+            const td = document.createElement('td'); td.textContent = txt; tr.appendChild(td);
+          });
+          stBody.appendChild(tr);
+        });
+        structureTable.appendChild(stBody);
+        structureContent.appendChild(structureTable);
+
+        const foreignKeys = getForeignKeysForTable(tabla);
+        if (foreignKeys.length > 0) {
+          const fkDiv = document.createElement('div');
+          fkDiv.style.cssText = 'margin-top:5px;font-size:0.9em;';
+          fkDiv.innerHTML = '<b>FK:</b> ' + foreignKeys.map(fk =>
+            `<b>${fk.from}</b> → <b>${fk.refTable}(${fk.to})</b>`
+          ).join(', ');
+          structureContent.appendChild(fkDiv);
+        }
+
+        content.appendChild(structureContent);
+
+        const dataTitleEl = document.createElement('div');
+        dataTitleEl.className = 'structure-title';
+        dataTitleEl.style.marginTop = '7px';
+        dataTitleEl.textContent = 'Datos:';
+        content.appendChild(dataTitleEl);
+
+        let datos = [];
+        try { const r = db.exec(`SELECT * FROM ${tabla};`); if (r.length>0) datos = r[0].values; } catch(e){}
+
+        const tablaHTML = document.createElement('table');
+        const thead = document.createElement('thead');
+        const tr = document.createElement('tr');
+        columnsInfo.forEach(col => {
+          const th = document.createElement('th'); th.textContent = col.name; th.className='column-header'; tr.appendChild(th);
+        });
+        thead.appendChild(tr);
+        tablaHTML.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        if (datos.length === 0) {
+          const trv = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = columnsInfo.length; td.style.color='#aaa'; td.textContent='Sin datos';
+          trv.appendChild(td); tbody.appendChild(trv);
+        } else {
+          datos.forEach(fila => {
+            const trf = document.createElement('tr');
+            fila.forEach(valor => { const td=document.createElement('td'); td.textContent=valor; trf.appendChild(td); });
+            tbody.appendChild(trf);
+          });
+        }
+        tablaHTML.appendChild(tbody);
+        content.appendChild(tablaHTML);
+
+        box.appendChild(content);
+
+        structureToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          box.classList.toggle('structure-collapsed');
+          const expanded = !box.classList.contains('structure-collapsed');
+          structureToggle.setAttribute('aria-expanded', String(expanded));
+          structureCollapsedState[tabla] = !expanded;
+        });
+
+        const rh = document.createElement('div');
+        rh.className = 'resize-handle';
+        box.appendChild(rh);
+
+        graph.appendChild(box);
+
+        makeDraggable(box, title);
+        makeResizable(box, rh);
+      });
+
+    } catch(e) {
+      graph.innerHTML = '<div style="color:#c0392b;position:absolute;padding:16px;">Error: ' + e.message + '</div>';
+    }
+  }
+
+  function makeDraggable(box, handle) {
+    let startX, startY, startLeft, startTop;
+
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = parseInt(box.style.left) || 0;
+      startTop  = parseInt(box.style.top)  || 0;
+
+      box.style.zIndex = getMaxZ() + 1;
+
+      function onMove(e) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const container = document.getElementById('right');
+        const maxLeft = container.offsetWidth - box.offsetWidth;
+        const maxTop  = container.offsetHeight - box.offsetHeight;
+        box.style.left = Math.max(0, Math.min(maxLeft, startLeft + dx)) + 'px';
+        box.style.top  = Math.max(0, Math.min(maxTop,  startTop  + dy)) + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  function makeResizable(box, handle) {
+    let startX, startY, startW, startH;
+
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      startX = e.clientX;
+      startY = e.clientY;
+      startW = box.offsetWidth;
+      startH = box.offsetHeight;
+
+      function onMove(e) {
+        const newW = Math.max(180, startW + (e.clientX - startX));
+        const newH = Math.max(80,  startH + (e.clientY - startY));
+        box.style.width  = newW + 'px';
+        box.style.height = newH + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  function getMaxZ() {
+    let max = 0;
+    document.querySelectorAll('.table-box').forEach(b => {
+      const z = parseInt(b.style.zIndex) || 0;
+      if (z > max) max = z;
+    });
+    return max;
+  }
+
+  (function() {
+    const divider = document.getElementById('divider');
+    const left    = document.getElementById('left');
+    let dragging  = false;
+    let startX, startWidth;
+
+    divider.addEventListener('mousedown', function(e) {
+      dragging = true;
+      startX = e.clientX;
+      startWidth = left.offsetWidth;
+      divider.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const container = document.getElementById('container');
+      const minW = 220;
+      const maxW = container.offsetWidth * 0.80;
+      const newW = Math.max(minW, Math.min(maxW, startWidth + dx));
+      left.style.width = newW + 'px';
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (!dragging) return;
+      dragging = false;
+      divider.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+  })();
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const editor = document.getElementById('sql-editor');
+    editor.addEventListener('keydown', function(e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const s = this.selectionStart, en = this.selectionEnd;
+        this.value = this.value.substring(0,s) + "    " + this.value.substring(en);
+        this.selectionStart = this.selectionEnd = s + 4;
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'Return')) {
+        e.preventDefault();
+        ejecutarDesdeEditor();
+      }
+    });
+  });
+
+  document.getElementById('ejecutarBtn').onclick  = ejecutarDesdeEditor;
+  document.getElementById('borrarBtn').onclick    = borrarEditor;
+  document.getElementById('initBtn').onclick      = generarCodigoEjemplo;
+  document.getElementById('unanBtn').onclick      = crearUnAN;
+  document.getElementById('mnBtn').onclick        = crearMN;
+  document.getElementById('mnhBtn').onclick       = crearMNHistorico;
+  document.getElementById('eliminarBtn').onclick  = eliminarBBDD;
+  document.getElementById('actualizarBtn').onclick = actualizarVistaTablas;
+</script>
+</body>
+</html>
