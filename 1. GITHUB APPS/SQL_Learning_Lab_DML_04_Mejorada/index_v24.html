@@ -528,7 +528,37 @@ INSERT INTO matriculas_historico (id_alumno, id_asignatura, fecha_matricula, not
     el.style.color = esError ? '#c0392b' : '#2d7b2f';
   }
 
-  function getColumnConstraints(tableName, columnName, tableSql, pragmaRow) {
+  function getUniqueConstraintsForTable(tableName) {
+    const uniqueColumns = new Map();
+
+    try {
+      const indexes = db.exec(`PRAGMA index_list(${tableName});`);
+      if (!indexes.length) return uniqueColumns;
+
+      indexes[0].values.forEach(indexRow => {
+        const indexName = indexRow[1];
+        const isUnique = indexRow[2] === 1;
+        const origin = indexRow[3];
+        if (!isUnique || origin === 'pk') return;
+
+        const indexInfo = db.exec(`PRAGMA index_info('${String(indexName).replace(/'/g, "''")}');`);
+        if (!indexInfo.length) return;
+
+        const columns = indexInfo[0].values.map(row => row[2]);
+        const label = columns.length > 1 ? `UNIQUE (${columns.join(', ')})` : 'UNIQUE';
+        columns.forEach(column => {
+          if (!uniqueColumns.has(column)) uniqueColumns.set(column, []);
+          uniqueColumns.get(column).push(label);
+        });
+      });
+    } catch (e) {
+      // SQLite puede no exponer el origen del índice en algunas versiones.
+    }
+
+    return uniqueColumns;
+  }
+
+  function getColumnConstraints(tableName, columnName, tableSql, pragmaRow, uniqueColumns, foreignKeys) {
     const constraints = [];
     if (pragmaRow.notnull === 1) constraints.push('NOT NULL');
     if (pragmaRow.dflt_value !== null && pragmaRow.dflt_value !== undefined)
@@ -539,21 +569,30 @@ INSERT INTO matriculas_historico (id_alumno, id_asignatura, fecha_matricula, not
     }
 
     if (pragmaRow.pk > 0 && pragmaRow.type && pragmaRow.type.toUpperCase().includes('INT') && /AUTOINCREMENT/i.test(tableSql)) {
-      const regex = new RegExp(`${columnName}\s+[^,]*AUTOINCREMENT`, "i");
+      const escapedColumnName = String(columnName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`${escapedColumnName}\\s+[^,]*AUTOINCREMENT`, "i");
       if (regex.test(tableSql)) constraints.push('AUTOINCREMENT');
     }
 
-    const colDefRegex = new RegExp(`${columnName}\s+[^,]*CHECK\s*\(([^\)]*)\)`,"i");
+    const escapedColumnName = String(columnName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const colDefRegex = new RegExp(`${escapedColumnName}\\s+[^,]*CHECK\\s*\\(([^\\)]*)\\)`, "i");
     const matchCheck = tableSql.match(colDefRegex);
     if (matchCheck) constraints.push('CHECK (' + matchCheck[1].trim() + ')');
 
-    const uniqueColRegex = new RegExp(`${columnName}\s+[^,]*UNIQUE`,"i");
-    if (uniqueColRegex.test(tableSql)) constraints.push('UNIQUE');
+    if (uniqueColumns.has(columnName)) {
+      uniqueColumns.get(columnName).forEach(uniqueConstraint => {
+        if (!constraints.includes(uniqueConstraint)) constraints.push(uniqueConstraint);
+      });
+    }
 
     if (pragmaRow.notnull === 0 && pragmaRow.pk === 0) {
-      const nullColRegex = new RegExp(`${columnName}\s+[^,]*\bNULL\b`,"i");
+      const nullColRegex = new RegExp(`${escapedColumnName}\\s+[^,]*\\bNULL\\b`,"i");
       if (nullColRegex.test(tableSql)) constraints.push('NULL');
     }
+
+    foreignKeys
+      .filter(fk => fk.from === columnName)
+      .forEach(fk => constraints.push(`REFERENCES ${fk.refTable}(${fk.to})`));
 
     return constraints;
   }
@@ -633,6 +672,8 @@ INSERT INTO matriculas_historico (id_alumno, id_asignatura, fecha_matricula, not
         const columnsInfo = columnas[0].values.map(col => ({
           cid: col[0], name: col[1], type: col[2], notnull: col[3], dflt_value: col[4], pk: col[5]
         }));
+        const uniqueColumns = getUniqueConstraintsForTable(tabla);
+        const foreignKeys = getForeignKeysForTable(tabla);
 
         const structureTable = document.createElement('table');
         structureTable.className = 'structure-table';
@@ -647,7 +688,7 @@ INSERT INTO matriculas_historico (id_alumno, id_asignatura, fecha_matricula, not
         const stBody = document.createElement('tbody');
         columnsInfo.forEach(col => {
           const tr = document.createElement('tr');
-          [col.name, col.type, getColumnConstraints(tabla, col.name, tableSql, col).join(', ')].forEach(txt => {
+          [col.name, col.type, getColumnConstraints(tabla, col.name, tableSql, col, uniqueColumns, foreignKeys).join(', ')].forEach(txt => {
             const td = document.createElement('td'); td.textContent = txt; tr.appendChild(td);
           });
           stBody.appendChild(tr);
@@ -655,7 +696,6 @@ INSERT INTO matriculas_historico (id_alumno, id_asignatura, fecha_matricula, not
         structureTable.appendChild(stBody);
         structureContent.appendChild(structureTable);
 
-        const foreignKeys = getForeignKeysForTable(tabla);
         if (foreignKeys.length > 0) {
           const fkDiv = document.createElement('div');
           fkDiv.style.cssText = 'margin-top:5px;font-size:0.9em;';

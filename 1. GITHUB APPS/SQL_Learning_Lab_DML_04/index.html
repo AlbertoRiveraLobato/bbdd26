@@ -285,8 +285,44 @@ INSERT INTO asignaturas (nombre, curso) VALUES
       mostrarMensaje('', false);
     }
 
-    // Analiza la definición CREATE TABLE para extraer restricciones de columna
-    function getColumnConstraints(tableName, columnName, tableSql, pragmaRow) {
+    // Obtiene las columnas que forman cada restricción UNIQUE declarada en la tabla
+    function getUniqueConstraintsForTable(tableName) {
+      const uniqueColumns = new Map();
+
+      try {
+        const indexes = db.exec(`PRAGMA index_list(${tableName});`);
+        if (!indexes.length) return uniqueColumns;
+
+        indexes[0].values.forEach(indexRow => {
+          const indexName = indexRow[1];
+          const isUnique = indexRow[2] === 1;
+          const origin = indexRow[3];
+
+          // El índice de la PRIMARY KEY no es una restricción UNIQUE adicional.
+          if (!isUnique || origin === 'pk') return;
+
+          const indexInfo = db.exec(`PRAGMA index_info('${String(indexName).replace(/'/g, "''")}');`);
+          if (!indexInfo.length) return;
+
+          const columns = indexInfo[0].values.map(row => row[2]);
+          const label = columns.length > 1
+            ? `UNIQUE (${columns.join(', ')})`
+            : 'UNIQUE';
+
+          columns.forEach(column => {
+            if (!uniqueColumns.has(column)) uniqueColumns.set(column, []);
+            uniqueColumns.get(column).push(label);
+          });
+        });
+      } catch (e) {
+        // Algunas versiones de SQLite pueden no exponer el origen del índice.
+      }
+
+      return uniqueColumns;
+    }
+
+    // Analiza la definición CREATE TABLE y la información de SQLite para extraer restricciones
+    function getColumnConstraints(tableName, columnName, tableSql, pragmaRow, uniqueColumns, foreignKeys) {
       // pragmaRow contiene {cid, name, type, notnull, dflt_value, pk}
       const constraints = [];
 
@@ -296,38 +332,48 @@ INSERT INTO asignaturas (nombre, curso) VALUES
       if (pragmaRow.dflt_value !== null && pragmaRow.dflt_value !== undefined)
         constraints.push('DEFAULT ' + pragmaRow.dflt_value);
       // PRIMARY KEY
-      if (pragmaRow.pk === 1) constraints.push('PRIMARY KEY');
+      if (pragmaRow.pk > 0) constraints.push('PRIMARY KEY');
       // AUTOINCREMENT (solo si PRIMARY KEY INTEGER AUTOINCREMENT)
       if (
-        pragmaRow.pk === 1 &&
+        pragmaRow.pk > 0 &&
         pragmaRow.type &&
         pragmaRow.type.toUpperCase().includes('INT') &&
         /AUTOINCREMENT/i.test(tableSql)
       ) {
         // Buscar la definición de la columna
-        const regex = new RegExp(`${columnName}\\s+[^,]*AUTOINCREMENT`, "i");
+        const escapedColumnName = String(columnName).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&');
+        const regex = new RegExp(`${escapedColumnName}\\s+[^,]*AUTOINCREMENT`, "i");
         if (regex.test(tableSql)) constraints.push('AUTOINCREMENT');
       }
 
       // CHECK constraints (por columna)
       // Busca CHECK en la definición de la columna
+      const escapedColumnName = String(columnName).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&');
       const colDefRegex = new RegExp(
-        `${columnName}\\s+[^,]*CHECK\\s*\\(([^\\)]*)\\)`,
+        `${escapedColumnName}\\s+[^,]*CHECK\\s*\\(([^\\)]*)\\)`,
         "i"
       );
       const matchCheck = tableSql.match(colDefRegex);
       if (matchCheck) constraints.push('CHECK (' + matchCheck[1].trim() + ')');
 
-      // UNIQUE por columna
-      const uniqueColRegex = new RegExp(`${columnName}\\s+[^,]*UNIQUE`, "i");
-      if (uniqueColRegex.test(tableSql)) constraints.push('UNIQUE');
+      // UNIQUE por columna o como restricción compuesta
+      if (uniqueColumns.has(columnName)) {
+        uniqueColumns.get(columnName).forEach(uniqueConstraint => {
+          if (!constraints.includes(uniqueConstraint)) constraints.push(uniqueConstraint);
+        });
+      }
 
       // NULL explícito (si no es NOT NULL)
       if (pragmaRow.notnull === 0) {
         // Si la definición pone NULL explícito
-        const nullColRegex = new RegExp(`${columnName}\\s+[^,]*\\bNULL\\b`, "i");
+        const nullColRegex = new RegExp(`${escapedColumnName}\\s+[^,]*\\bNULL\\b`, "i");
         if (nullColRegex.test(tableSql)) constraints.push('NULL');
       }
+
+      // FOREIGN KEY asociada a la columna
+      foreignKeys
+        .filter(fk => fk.from === columnName)
+        .forEach(fk => constraints.push(`REFERENCES ${fk.refTable}(${fk.to})`));
 
       return constraints;
     }
@@ -405,6 +451,8 @@ INSERT INTO asignaturas (nombre, curso) VALUES
             dflt_value: col[4],
             pk: col[5]
           }));
+          const uniqueColumns = getUniqueConstraintsForTable(tabla);
+          const foreignKeys = getForeignKeysForTable(tabla);
 
           // Tabla de estructura
           const structureTable = document.createElement('table');
@@ -432,7 +480,7 @@ INSERT INTO asignaturas (nombre, curso) VALUES
             tr.appendChild(tdType);
             // Restricciones
             const tdCons = document.createElement('td');
-            const constraints = getColumnConstraints(tabla, col.name, tableSql, col);
+            const constraints = getColumnConstraints(tabla, col.name, tableSql, col, uniqueColumns, foreignKeys);
             tdCons.textContent = constraints.length > 0 ? constraints.join(', ') : '';
             tr.appendChild(tdCons);
 
@@ -441,7 +489,6 @@ INSERT INTO asignaturas (nombre, curso) VALUES
           structureTable.appendChild(structureTbody);
 
           // FOREIGN KEYS
-          const foreignKeys = getForeignKeysForTable(tabla);
           if (foreignKeys.length > 0) {
             const fkDiv = document.createElement('div');
             fkDiv.style.marginTop = '6px';

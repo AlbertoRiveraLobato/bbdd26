@@ -3,14 +3,16 @@ const APP_VERSION = "v26";
 
 let db, ready = false;
 let SQL;
+let sqlLoadError;
 
 // Inicializa SQL.js y espera a que esté listo antes de permitir usar la BD
-initSqlJs({
+const sqlReady = initSqlJs({
     locateFile: file => `./${file}`
 }).then(SQLLib => {
     SQL = SQLLib;
     document.getElementById('output').innerHTML = "<pre style='color: green;'>Librería SQL.js cargada. Pulsa 'Inicializar BD' para continuar.</pre>";
 }).catch(err => {
+    sqlLoadError = err;
     document.getElementById('output').innerHTML = `<pre class="error-message">Error cargando SQL.js: ${err.message}</pre>`;
 });
 
@@ -142,14 +144,32 @@ async function ejecutarSQL(sql) {
 }
 
 // Inicializar la base de datos
-function inicializarDB() {
+async function inicializarDB() {
+    await sqlReady;
+
     if (!SQL) {
-        printError("La librería SQL.js aún no está lista.");
+        printError(`No se pudo cargar la librería SQL.js${sqlLoadError ? `: ${sqlLoadError.message}` : '.'}`);
         return;
     }
+
+    if (db) db.close();
+    db = new SQL.Database();
+    ready = true;
+
+    try {
+        db.exec(initSQL);
+        cargarRooms();
+    } catch (e) {
+        ready = false;
+        db.close();
+        db = undefined;
+        printError(`Error inicializando la base de datos: ${e.message}`);
+        return;
+    }
+
     // Pegar el código SQL en el textarea para que el usuario pueda editarlo o ejecutarlo
     sqlInput.value = initSQL.trim();
-    output.innerHTML = `<pre style="color: green;">Código SQL de inicialización cargado en el editor. Puedes editarlo y luego pulsar 'Ejecutar' para crear la base de datos.</pre>`;
+    output.innerHTML = `<pre style="color: green;">Base de datos inicializada correctamente. Puedes editar el SQL y pulsar 'Ejecutar' para realizar cambios.</pre>`;
 }
 
 // Borrar la base de datos
